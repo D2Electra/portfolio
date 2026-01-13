@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Видео-кластер</title>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  overflow: hidden;
+  font-family: "Courier New", monospace;
+}
+
+svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;        /* Линия под иконками */
+  pointer-events: none;
+}
+
+
+/* видео-иконки */
+.video-box {
+  position: absolute;
+  width: 80px;
+  height: 45px;
+  cursor: grab;
+  transition: transform 0.35s ease;
+  transform-origin: center center;
+  z-index: 2; /* НИЖЕ линии */
+}
+
+.video-box video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.video-box.active {
+  transform: scale(5);
+  z-index: 5;
+}
+
+/* SVG линии */
+svg {
+  position: absolute;
+  inset: 0;
+  z-index:1; /* ВЫШЕ видео */
+  pointer-events: none;
+}
+
+.blur-line {
+  stroke: #ffb6c1;
+  stroke-width: 45;
+  stroke-linecap: round;
+  opacity: 0.55;
+  filter: blur(4px);
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+#cluster-text {
+  position: absolute;
+  max-width: 420px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #222;
+
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
+
+  display: none;
+  z-index: 20;
+
+  pointer-events: none;
+  user-select: none;
+
+  white-space: pre-line;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="container">
+  <svg id="lines"></svg>
+
+  <div id="cluster-text">
+Анимация сделана на Большом фестивале мультфильмов в ноябре 2025 г.  
+Формат 4 дневных мастерклассов с детьми.  
+Приблизительно 100 детей приняло участие в создании мультфильма.  
+
+Техника фото-перекладка посвящена научным работникам.  
+Ученые пытаются расширить секунду до минуту с помощью необычного оборудования.  
+При расширении времени реальность начинает реагировать.  
+
+Фотоархив Conseil Européen pour la Recherche Nucléaire, CERN
+  </div>
+</div>
+
+<script>
+const container = document.getElementById("container");
+const svg = document.getElementById("lines");
+const clusterText = document.getElementById("cluster-text");
+
+const videos = [
+  "1.mp4","2.mp4","3.mp4",
+  "4.mp4","5.mp4","6.mp4",
+  "7.mp4","8.mp4","9.mp4"
+];
+
+const boxes = [];
+
+/* создаём видео */
+videos.forEach(src => {
+  const box = document.createElement("div");
+  box.className = "video-box";
+  box.style.left = Math.random() * (window.innerWidth - 100) + "px";
+  box.style.top  = Math.random() * (window.innerHeight - 80) + "px";
+
+  const video = document.createElement("video");
+  video.src = src;
+  video.playsInline = true;
+
+  box.appendChild(video);
+  container.appendChild(box);
+  boxes.push({ box, video });
+
+  /* двойной клик */
+  box.addEventListener("dblclick", e => {
+    e.stopPropagation();
+    box.classList.toggle("active");
+
+    if (box.classList.contains("active")) {
+      video.play();
+    } else {
+      video.pause();
+      video.currentTime = 0;
+    }
+  });
+
+  /* перетаскивание */
+  let drag = false, ox = 0, oy = 0;
+
+  box.addEventListener("mousedown", e => {
+    drag = true;
+    ox = e.clientX - box.offsetLeft;
+    oy = e.clientY - box.offsetTop;
+  });
+
+  window.addEventListener("mousemove", e => {
+    if (!drag) return;
+    box.style.left = e.clientX - ox + "px";
+    box.style.top  = e.clientY - oy + "px";
+    drawLines();
+  });
+
+  window.addEventListener("mouseup", () => drag = false);
+});
+
+/* рисуем линии */
+function drawLines() {
+  svg.innerHTML = "";
+
+  for (let i = 0; i < boxes.length - 1; i++) {
+    const r1 = boxes[i].box.getBoundingClientRect();
+    const r2 = boxes[i + 1].box.getBoundingClientRect();
+
+    const x1 = r1.left + r1.width / 2;
+    const y1 = r1.top  + r1.height / 2;
+    const x2 = r2.left + r2.width / 2;
+    const y2 = r2.top  + r2.height / 2;
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", x1);
+    line.setAttribute("y1", y1);
+    line.setAttribute("x2", x2);
+    line.setAttribute("y2", y2);
+    line.classList.add("blur-line");
+
+    line.addEventListener("click", e => {
+      e.stopPropagation();
+      clusterText.style.display =
+        clusterText.style.display === "block" ? "none" : "block";
+      clusterText.style.left = (x1 + x2) / 2 + 20 + "px";
+      clusterText.style.top  = (y1 + y2) / 2 + "px";
+    });
+
+    svg.appendChild(line);
+  }
+}
+
+drawLines();
+
+/* клик вне линии — скрыть текст */
+document.body.addEventListener("click", () => {
+  clusterText.style.display = "none";
+});
+</script>
+
+</body>
+</html>
