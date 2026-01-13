@@ -2,10 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-
-<!-- ВАЖНО для Android -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
 <title>Видео-кластеры</title>
 
 <style>
@@ -14,22 +11,31 @@ html, body {
   padding: 0;
   width: 100%;
   height: 100%;
-  background: transparent; /* было white? заменяем на transparent */
+  background: #ffffff;
   overflow: hidden;
   font-family: "Courier New", monospace;
+}
+
+#container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
 }
 
 /* SVG линии */
 svg {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  width: 100%;
+  height: 100%;
+  z-index: 1;        /* Линии под видео */
   pointer-events: none;
   background: transparent;
 }
 
-
-/* Видео-иконки */
+/* видео-иконки */
 .video-box {
   position: absolute;
   width: 80px;
@@ -37,6 +43,7 @@ svg {
   cursor: grab;
   transition: transform 0.35s ease;
   transform-origin: center;
+  z-index: 2; /* НАД линиями */
 }
 
 .video-box video {
@@ -81,23 +88,23 @@ svg {
 </head>
 
 <body>
-
-<svg id="lines"></svg>
+<div id="container">
+  <svg id="lines"></svg>
+</div>
 
 <script>
+const container = document.getElementById("container");
 const svg = document.getElementById("lines");
 
-/* =========================
-   КОНФИГУРАЦИЯ КЛАСТЕРОВ
-   ========================= */
-
+// =========================
+// КОНФИГУРАЦИЯ КЛАСТЕРОВ
+// =========================
 const clusters = [
   {
     color: "#ffb6c1",
     text: `Анимация сделана на Большом фестивале мультфильмов в ноябре 2025 г.
 Формат 4 дневных мастерклассов с детьми.
 Приблизительно 100 детей приняло участие.
-
 Фотоархив CERN.`,
     videos: [
       "1.mp4","2.mp4","3.mp4",
@@ -105,7 +112,6 @@ const clusters = [
       "7.mp4","8.mp4","9.mp4"
     ]
   },
-
   {
     color: "#ffd84d",
     text: `Жёлтый маршрут.
@@ -120,8 +126,7 @@ const clusters = [
   }
 ];
 
-/* ========================= */
-
+// =========================
 const allClusters = [];
 
 clusters.forEach((config, clusterIndex) => {
@@ -133,14 +138,16 @@ function createCluster(config, index) {
   const textBlock = document.createElement("div");
   textBlock.className = "cluster-text";
   textBlock.textContent = config.text;
-  document.body.appendChild(textBlock);
+  container.appendChild(textBlock);
+
+  const rect = container.getBoundingClientRect();
 
   config.videos.forEach(src => {
     const box = document.createElement("div");
     box.className = "video-box";
 
-    box.style.left = Math.random() * (window.innerWidth - 120) + "px";
-    box.style.top  = Math.random() * (window.innerHeight - 120) + "px";
+    box.style.left = Math.random() * (rect.width - 100) + "px";
+    box.style.top  = Math.random() * (rect.height - 80) + "px";
 
     const video = document.createElement("video");
     video.src = src;
@@ -149,10 +156,10 @@ function createCluster(config, index) {
     video.preload = "metadata";
 
     box.appendChild(video);
-    document.body.appendChild(box);
+    container.appendChild(box);
     boxes.push({ box, video });
 
-    /* TAP / CLICK */
+    /* CLICK / TAP — воспроизведение */
     box.addEventListener("click", e => {
       e.stopPropagation();
       box.classList.toggle("active");
@@ -169,25 +176,21 @@ function createCluster(config, index) {
 
     /* MOUSE DRAG */
     let drag = false, ox = 0, oy = 0;
-
     box.addEventListener("mousedown", e => {
       drag = true;
       ox = e.clientX - box.offsetLeft;
       oy = e.clientY - box.offsetTop;
     });
-
     window.addEventListener("mousemove", e => {
       if (!drag) return;
       box.style.left = e.clientX - ox + "px";
       box.style.top  = e.clientY - oy + "px";
       drawAllLines();
     });
-
     window.addEventListener("mouseup", () => drag = false);
 
-    /* TOUCH DRAG (ANDROID) */
+    /* TOUCH DRAG для Android */
     let touching = false, tox = 0, toy = 0;
-
     box.addEventListener("touchstart", e => {
       touching = true;
       const t = e.touches[0];
@@ -209,16 +212,13 @@ function createCluster(config, index) {
   allClusters.push({ boxes, color: config.color, textBlock });
 }
 
-/* =========================
-   ЛИНИИ
-   ========================= */
-
+// =========================
+// ЛИНИИ
+// =========================
 function drawAllLines() {
   svg.innerHTML = "";
-
   allClusters.forEach(cluster => {
     const { boxes, color, textBlock } = cluster;
-
     for (let i = 0; i < boxes.length - 1; i++) {
       const a = boxes[i].box.getBoundingClientRect();
       const b = boxes[i + 1].box.getBoundingClientRect();
@@ -236,6 +236,7 @@ function drawAllLines() {
       line.setAttribute("stroke", color);
       line.classList.add("blur-line");
 
+      /* текст по клику на линию */
       line.addEventListener("click", e => {
         e.stopPropagation();
         textBlock.style.display =
@@ -251,13 +252,10 @@ function drawAllLines() {
 
 drawAllLines();
 
+/* клик вне линии — скрыть все тексты */
 document.body.addEventListener("click", () => {
-  document.querySelectorAll(".cluster-text")
-    .forEach(t => t.style.display = "none");
+  document.querySelectorAll(".cluster-text").forEach(t => t.style.display = "none");
 });
 </script>
-
 </body>
 </html>
-
-
