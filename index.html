@@ -2,7 +2,11 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Видео-кластер</title>
+
+<!-- ВАЖНО для Android -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>Видео-кластеры</title>
 
 <style>
 html, body {
@@ -15,25 +19,21 @@ html, body {
   font-family: "Courier New", monospace;
 }
 
+/* SVG линии */
 svg {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 1; /* Линия под иконками */
+  inset: 0;
   pointer-events: none;
 }
 
-/* видео-иконки */
+/* Видео-иконки */
 .video-box {
   position: absolute;
   width: 80px;
   height: 45px;
   cursor: grab;
   transition: transform 0.35s ease;
-  transform-origin: center center;
-  z-index: 2; /* НИЖЕ линии */
+  transform-origin: center;
 }
 
 .video-box video {
@@ -45,12 +45,11 @@ svg {
 
 .video-box.active {
   transform: scale(5);
-  z-index: 5;
+  z-index: 10;
 }
 
-/* SVG линии */
+/* Линии */
 .blur-line {
-  stroke: #ffb6c1;
   stroke-width: 45;
   stroke-linecap: round;
   opacity: 0.55;
@@ -59,158 +58,197 @@ svg {
   cursor: pointer;
 }
 
-/* текст проекта — без фона */
-#cluster-text {
+/* Текст кластера */
+.cluster-text {
   position: absolute;
   max-width: 420px;
   font-size: 12px;
   line-height: 1.4;
   color: #222;
-
-  background: none !important;
-  box-shadow: none !important;
-  border: none !important;
-
   display: none;
   z-index: 20;
-
-  pointer-events: none;
-  user-select: none;
-
   white-space: pre-line;
+  pointer-events: none;
 }
 </style>
 </head>
 
 <body>
 
-<div id="container">
-  <svg id="lines"></svg>
-
-  <div id="cluster-text">
-Анимация сделана на Большом фестивале мультфильмов в ноябре 2025 г.  
-Формат 4 дневных мастерклассов с детьми.  
-Приблизительно 100 детей приняло участие в создании мультфильма.  
-
-Техника фото-перекладка посвящена научным работникам.  
-Ученые пытаются расширить секунду до минуту с помощью необычного оборудования.  
-При расширении времени реальность начинает реагировать.  
-
-Фотоархив Conseil Européen pour la Recherche Nucléaire, CERN
-  </div>
-</div>
+<svg id="lines"></svg>
 
 <script>
-const container = document.getElementById("container");
 const svg = document.getElementById("lines");
-const clusterText = document.getElementById("cluster-text");
 
-// !!! Тут вставляем просто имена файлов из репозитория !!!
-const videos = [
-  "https://d2electra.github.io/portfolio/1.mp4",
-  "https://d2electra.github.io/portfolio/2.mp4",
-  "https://d2electra.github.io/portfolio/3.mp4",
-  "https://d2electra.github.io/portfolio/4.mp4",
-  "https://d2electra.github.io/portfolio/5.mp4",
-  "https://d2electra.github.io/portfolio/6.mp4",
-  "https://d2electra.github.io/portfolio/7.mp4",
-  "https://d2electra.github.io/portfolio/8.mp4",
-  "https://d2electra.github.io/portfolio/9.mp4"
+/* =========================
+   КОНФИГУРАЦИЯ КЛАСТЕРОВ
+   ========================= */
+
+const clusters = [
+  {
+    color: "#ffb6c1",
+    text: `Анимация сделана на Большом фестивале мультфильмов в ноябре 2025 г.
+Формат 4 дневных мастерклассов с детьми.
+Приблизительно 100 детей приняло участие.
+
+Фотоархив CERN.`,
+    videos: [
+      "1.mp4","2.mp4","3.mp4",
+      "4.mp4","5.mp4","6.mp4",
+      "7.mp4","8.mp4","9.mp4"
+    ]
+  },
+
+  {
+    color: "#ffd84d",
+    text: `Жёлтый маршрут.
+Вторая часть проекта.
+Работа с ритмом и повторением.
+Видео 10–18.`,
+    videos: [
+      "10.mp4","11.mp4","12.mp4",
+      "13.mp4","14.mp4","15.mp4",
+      "16.mp4","17.mp4","18.mp4"
+    ]
+  }
 ];
 
+/* ========================= */
 
+const allClusters = [];
 
-const boxes = [];
-
-/* создаём видео-иконки */
-videos.forEach(src => {
-  const box = document.createElement("div");
-  box.className = "video-box";
-  box.style.left = Math.random() * (window.innerWidth - 100) + "px";
-  box.style.top  = Math.random() * (window.innerHeight - 80) + "px";
-
-  const video = document.createElement("video");
-  video.src = src;
-  video.playsInline = true;
-  video.muted = false; // если хочешь звук
-  video.controls = false;
-
-  box.appendChild(video);
-  container.appendChild(box);
-  boxes.push({ box, video });
-
-  /* двойной клик — воспроизведение и масштаб */
-  box.addEventListener("dblclick", e => {
-    e.stopPropagation();
-    box.classList.toggle("active");
-
-    if (box.classList.contains("active")) {
-      video.play();
-    } else {
-      video.pause();
-      video.currentTime = 0;
-    }
-  });
-
-  /* перетаскивание */
-  let drag = false, ox = 0, oy = 0;
-  box.addEventListener("mousedown", e => {
-    drag = true;
-    ox = e.clientX - box.offsetLeft;
-    oy = e.clientY - box.offsetTop;
-  });
-  window.addEventListener("mousemove", e => {
-    if (!drag) return;
-    box.style.left = e.clientX - ox + "px";
-    box.style.top  = e.clientY - oy + "px";
-    drawLines();
-  });
-  window.addEventListener("mouseup", () => drag = false);
+clusters.forEach((config, clusterIndex) => {
+  createCluster(config, clusterIndex);
 });
 
-/* рисуем линии между видео-иконками */
-function drawLines() {
-  svg.innerHTML = "";
-  for (let i = 0; i < boxes.length - 1; i++) {
-    const r1 = boxes[i].box.getBoundingClientRect();
-    const r2 = boxes[i + 1].box.getBoundingClientRect();
+function createCluster(config, index) {
+  const boxes = [];
+  const textBlock = document.createElement("div");
+  textBlock.className = "cluster-text";
+  textBlock.textContent = config.text;
+  document.body.appendChild(textBlock);
 
-    const x1 = r1.left + r1.width / 2;
-    const y1 = r1.top  + r1.height / 2;
-    const x2 = r2.left + r2.width / 2;
-    const y2 = r2.top  + r2.height / 2;
+  config.videos.forEach(src => {
+    const box = document.createElement("div");
+    box.className = "video-box";
 
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", x1);
-    line.setAttribute("y1", y1);
-    line.setAttribute("x2", x2);
-    line.setAttribute("y2", y2);
-    line.classList.add("blur-line");
+    box.style.left = Math.random() * (window.innerWidth - 120) + "px";
+    box.style.top  = Math.random() * (window.innerHeight - 120) + "px";
 
-    /* текст по клику на линию */
-    line.addEventListener("click", e => {
+    const video = document.createElement("video");
+    video.src = src;
+    video.playsInline = true;
+    video.muted = true;
+    video.preload = "metadata";
+
+    box.appendChild(video);
+    document.body.appendChild(box);
+    boxes.push({ box, video });
+
+    /* TAP / CLICK */
+    box.addEventListener("click", e => {
       e.stopPropagation();
-      clusterText.style.display =
-        clusterText.style.display === "block" ? "none" : "block";
-      clusterText.style.left = (x1 + x2) / 2 + 20 + "px";
-      clusterText.style.top  = (y1 + y2) / 2 + "px";
+      box.classList.toggle("active");
+
+      if (box.classList.contains("active")) {
+        video.muted = false;
+        video.play();
+      } else {
+        video.pause();
+        video.currentTime = 0;
+        video.muted = true;
+      }
     });
 
-    svg.appendChild(line);
-  }
+    /* MOUSE DRAG */
+    let drag = false, ox = 0, oy = 0;
+
+    box.addEventListener("mousedown", e => {
+      drag = true;
+      ox = e.clientX - box.offsetLeft;
+      oy = e.clientY - box.offsetTop;
+    });
+
+    window.addEventListener("mousemove", e => {
+      if (!drag) return;
+      box.style.left = e.clientX - ox + "px";
+      box.style.top  = e.clientY - oy + "px";
+      drawAllLines();
+    });
+
+    window.addEventListener("mouseup", () => drag = false);
+
+    /* TOUCH DRAG (ANDROID) */
+    let touching = false, tox = 0, toy = 0;
+
+    box.addEventListener("touchstart", e => {
+      touching = true;
+      const t = e.touches[0];
+      tox = t.clientX - box.offsetLeft;
+      toy = t.clientY - box.offsetTop;
+    }, { passive: true });
+
+    box.addEventListener("touchmove", e => {
+      if (!touching) return;
+      const t = e.touches[0];
+      box.style.left = t.clientX - tox + "px";
+      box.style.top  = t.clientY - toy + "px";
+      drawAllLines();
+    }, { passive: true });
+
+    box.addEventListener("touchend", () => touching = false);
+  });
+
+  allClusters.push({ boxes, color: config.color, textBlock });
 }
 
-drawLines();
+/* =========================
+   ЛИНИИ
+   ========================= */
 
-/* клик вне линии — скрыть текст */
+function drawAllLines() {
+  svg.innerHTML = "";
+
+  allClusters.forEach(cluster => {
+    const { boxes, color, textBlock } = cluster;
+
+    for (let i = 0; i < boxes.length - 1; i++) {
+      const a = boxes[i].box.getBoundingClientRect();
+      const b = boxes[i + 1].box.getBoundingClientRect();
+
+      const x1 = a.left + a.width / 2;
+      const y1 = a.top  + a.height / 2;
+      const x2 = b.left + b.width / 2;
+      const y2 = b.top  + b.height / 2;
+
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2);
+      line.setAttribute("y2", y2);
+      line.setAttribute("stroke", color);
+      line.classList.add("blur-line");
+
+      line.addEventListener("click", e => {
+        e.stopPropagation();
+        textBlock.style.display =
+          textBlock.style.display === "block" ? "none" : "block";
+        textBlock.style.left = (x1 + x2) / 2 + 20 + "px";
+        textBlock.style.top  = (y1 + y2) / 2 + "px";
+      });
+
+      svg.appendChild(line);
+    }
+  });
+}
+
+drawAllLines();
+
 document.body.addEventListener("click", () => {
-  clusterText.style.display = "none";
+  document.querySelectorAll(".cluster-text")
+    .forEach(t => t.style.display = "none");
 });
 </script>
 
 </body>
 </html>
-
-
-
-
